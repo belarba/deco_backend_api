@@ -5,53 +5,66 @@ class DataProcessingWorker
   REMOVABLE_VALUES = ['BE', 'NK', 'FR', 'BE FE', 'BE NL', 'PT'].freeze
   BATCH_SIZE = 1000
 
-  def perform(file_path)
-    # Lê o arquivo JSON
-    data_array = JSON.parse(File.read(file_path))
+  def perform(chunk, file_path, chunk_index)
+    logger = Logger.new(STDOUT)
+    redis = Redis.new
 
-    # Inicializa arrays para processamento em lote
     postgresql_batch = []
     mongodb_batch = []
 
-    # Limpa os dados para garantir que estejam em UTF-8
-    data_array.each do |data|
-      clean_data(data)
-    end
+    begin
+      chunk.each_with_index do |data, index|
+        normalized_data = normalize_data(data)
 
-    # Normaliza os dados e armazena em lotes
-    data_array.each_with_index do |data, index|
-      normalized_data = normalize_data(data)
+        if data["availability"] && normalized_data[:price] > 0
+          postgresql_batch << Product.new(normalized_data)
+          mongodb_batch << ExternalRecord.new(normalized_data)
+        end
 
-      # Regras de validação
-      if data["availability"] && normalized_data[:price] > 0
-        # Adiciona os dados ao lote
-        postgresql_batch << Product.new(normalized_data)
-        mongodb_batch << ExternalRecord.new(normalized_data)
+        if (index + 1) % BATCH_SIZE == 0
+          save_batches(postgresql_batch, mongodb_batch)
+          postgresql_batch.clear
+          mongodb_batch.clear
+        end
       end
 
-      # Insere em lote quando atingir o tamanho BATCH_SIZE
-      if (index + 1) % BATCH_SIZE == 0
-        save_batches(postgresql_batch, mongodb_batch)
-        postgresql_batch.clear
-        mongodb_batch.clear
+      save_batches(postgresql_batch, mongodb_batch) unless postgresql_batch.empty?
+
+      # Incrementa o número de chunks processados
+      processed_key = "data_processing:#{file_path}:processed_chunks"
+      redis.incr(processed_key)
+
+      # Verifica se todos os chunks foram processados
+      if all_chunks_processed?(file_path, redis)
+        File.delete(file_path) if File.exist?(file_path)
+        logger.info("All chunks processed. Deleted file: #{file_path}")
       end
+
+      logger.info("Processed chunk #{chunk_index} for #{file_path}")
+    rescue StandardError => e
+      logger.error("Error processing chunk #{chunk_index}: #{e.message}")
+    ensure
+      redis.close
     end
-
-    # Salva os últimos registros que não completaram o lote
-    save_batches(postgresql_batch, mongodb_batch) unless postgresql_batch.empty?
-
-    # Remove o arquivo após o processamento
-    File.delete(file_path) if File.exist?(file_path)
   end
 
   private
 
-  def save_batches(postgresql_batch, mongodb_batch)
-    # Inserir em lote no PostgreSQL
-    Product.import(postgresql_batch, validate: false)
+  def all_chunks_processed?(file_path, redis)
+    total_chunks = redis.get("data_processing:#{file_path}:total_chunks").to_i
+    processed_chunks = redis.get("data_processing:#{file_path}:processed_chunks").to_i
+    processed_chunks >= total_chunks
+  end
 
-    # Inserir em lote no MongoDB
+  def save_batches(postgresql_batch, mongodb_batch)
+    ActiveRecord::Base.transaction do
+      Product.import(postgresql_batch, validate: false)
+    end
     ExternalRecord.collection.insert_many(mongodb_batch.map(&:attributes))
+  rescue ActiveRecord::RecordInvalid => e
+    logger.error("Error saving to PostgreSQL: #{e.message}")
+  rescue Mongo::Error => e
+    logger.error("Error saving to MongoDB: #{e.message}")
   end
 
   def normalize_data(data)
@@ -70,28 +83,13 @@ class DataProcessingWorker
     }
   end
 
-  def clean_data(data)
-    data.each do |key, value|
-      if value.is_a?(String)
-        data[key] = value.encode('UTF-8', invalid: :replace, undef: :replace, replace: '')
-      elsif value.is_a?(Hash)
-        clean_data(value)
-      elsif value.is_a?(Array)
-        value.each { |item| clean_data(item) if item.is_a?(Hash) }
-      end
-    end
-  end
-
-  # Função para limpar dados indesejados do nome da loja
   def clean_invalid_chars(received_text)
     return nil if received_text.nil?
 
-    # Remover cada ocorrência dos valores inválidos
     REMOVABLE_VALUES.each do |invalid_value|
       received_text = received_text.gsub(/\b#{Regexp.escape(invalid_value)}\b/, '').strip
     end
 
-    # Remove espaços duplicados que podem ter surgido após a limpeza
     received_text.gsub(/\s+/, ' ')
   end
 end

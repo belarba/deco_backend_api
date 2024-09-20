@@ -8,7 +8,7 @@ class Api::V1::ProductsController < ApplicationController
         file.write(params[:file].read)
       end
 
-      DataProcessingWorker.perform_async(file_path.to_s)
+      MasterDataProcessingWorker.perform_async(file_path.to_s)
 
       render json: { status: "Started the processing" }, status: :ok
     else
