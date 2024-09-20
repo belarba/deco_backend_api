@@ -1,4 +1,6 @@
 class Api::V1::ProductsController < ApplicationController
+  skip_before_action :verify_authenticity_token
+
   def create
     if params[:file].present?
       file_path = Rails.root.join("tmp", params[:file].original_filename)

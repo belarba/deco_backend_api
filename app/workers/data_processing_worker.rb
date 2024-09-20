@@ -4,16 +4,23 @@ class DataProcessingWorker
 
   def perform(file_path)
     # Lê o arquivo JSON
-    data = JSON.parse(File.read(file_path))
+    data_array = JSON.parse(File.read(file_path))
+
+    # Limpa os dados para garantir que estejam em UTF-8
+    data_array.each do |data|
+      clean_data(data)
+    end
 
     # Normaliza os dados
-    normalized_data = normalize_data(data)
+    data_array.each do |data|
+      normalized_data = normalize_data(data)
 
-    # Salva no PostgreSQL
-    record = Record.create!(name: normalized_data[:name], data: normalized_data[:data])
+      # Salva no PostgreSQL
+      product = Product.create!(normalized_data)
 
-    # Salva no MongoDB
-    ExternalRecord.create!(name: normalized_data[:name], data: normalized_data[:data])
+      # Salva no MongoDB
+      ExternalRecord.create!(normalized_data)
+    end
   end
 
   private
@@ -22,12 +29,25 @@ class DataProcessingWorker
     {
       country: data["country"],
       brand: data["brand"],
-      produtc_id: data["sku"],
+      produtc_id: data["sku"].to_i,
       product_name: data["model"],
-      shop_name: data["shop_name"],
-      product_category_id: data["site"] || data["marketplaceseller"],
-      price: data["price"],
+      product_category_id: data["categoryId"].to_i,
+      shop_name: data["site"] || data["marketplaceseller"],
+      price: data["price"].to_f,
       url: data["url"]
     }
   end
+
+  def clean_data(data)
+    data.each do |key, value|
+      if value.is_a?(String)
+        data[key] = value.encode('UTF-8', invalid: :replace, undef: :replace, replace: '')
+      elsif value.is_a?(Hash)
+        clean_data(value)
+      elsif value.is_a?(Array)
+        value.each { |item| clean_data(item) if item.is_a?(Hash) }
+      end
+    end
+  end
+
 end

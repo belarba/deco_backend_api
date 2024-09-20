@@ -1,4 +1,3 @@
-class Product
-  include Mongoid::Document
-  include Mongoid::Timestamps
+class Product < ApplicationRecord
+
 end
