@@ -183,3 +183,14 @@ test:
         read:
           mode: :primary
         max_pool_size: 1
+
+production:
+  clients:
+    default:
+      database: backend_api_production
+      hosts:
+        - your-production-host:27017
+      options:
+        user: backend_api
+        password: <%= ENV["BACKEND_API_DATABASE_PASSWORD"] %>
+        auth_source: admin
