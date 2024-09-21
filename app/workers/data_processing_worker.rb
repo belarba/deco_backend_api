@@ -73,7 +73,7 @@ class DataProcessingWorker
   end
 
   def normalize_data(data)
-    shop_name = clean_invalid_chars(data["site"] || data["marketplaceseller"])
+    shop_name = clean_invalid_chars(data["ismarketplace"] ? data["marketplaceseller"] : data["site"])
     country = clean_invalid_chars(data["country"])
 
     {
