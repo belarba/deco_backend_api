@@ -14,6 +14,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :products, only: [:create]
+      get 'processing_status/:file_path', to: 'processing_status#show'
     end
   end
 end

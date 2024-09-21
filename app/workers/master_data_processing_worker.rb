@@ -4,7 +4,7 @@ class MasterDataProcessingWorker
 
   CHUNK_SIZE = 10000 # Define o tamanho de cada chunk
 
-  def perform(file_path)
+  def perform(file_path, job_id)
     logger = Logger.new(STDOUT)
     redis = Redis.new
 
@@ -16,16 +16,17 @@ class MasterDataProcessingWorker
       total_chunks = (data_array.size / CHUNK_SIZE.to_f).ceil
 
       # Armazena o número total de chunks no Redis
-      redis.set("data_processing:#{file_path}:total_chunks", total_chunks)
-      redis.set("data_processing:#{file_path}:processed_chunks", 0)
+      redis.set("data_processing:#{job_id}:total_chunks", total_chunks)
+      redis.set("data_processing:#{job_id}:processed_chunks", 0)
+      redis.set("data_processing:#{job_id}:status", "processing")
 
       # Divide o array de dados em chunks menores e enfileira workers
       data_array.each_slice(CHUNK_SIZE).with_index do |chunk, index|
         sanitized_chunk = chunk.map { |item| sanitize_hash(item) }
-        DataProcessingWorker.perform_async(sanitized_chunk, file_path, index)
+        DataProcessingWorker.perform_async(sanitized_chunk, file_path, index, job_id)
       end
 
-      logger.info("Enqueued #{total_chunks} chunks for processing from #{file_path}")
+      logger.info("Enqueued #{total_chunks} chunks for processing from #{job_id}")
     rescue JSON::ParserError => e
       logger.error("Error parsing JSON file: #{e.message}")
     rescue Errno::ENOENT => e

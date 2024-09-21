@@ -5,7 +5,7 @@ class DataProcessingWorker
   REMOVABLE_VALUES = ['BE', 'NK', 'FR', 'BE FE', 'BE NL', 'PT'].freeze
   BATCH_SIZE = 1000
 
-  def perform(chunk, file_path, chunk_index)
+  def perform(chunk, file_path, chunk_index, job_id)
     logger = Logger.new(STDOUT)
     redis = Redis.new
 
@@ -31,18 +31,20 @@ class DataProcessingWorker
       save_batches(postgresql_batch, mongodb_batch) unless postgresql_batch.empty?
 
       # Incrementa o número de chunks processados
-      processed_key = "data_processing:#{file_path}:processed_chunks"
+      processed_key = "data_processing:#{job_id}:processed_chunks"
       redis.incr(processed_key)
 
       # Verifica se todos os chunks foram processados
-      if all_chunks_processed?(file_path, redis)
+      if all_chunks_processed?(job_id, redis)
         File.delete(file_path) if File.exist?(file_path)
-        logger.info("All chunks processed. Deleted file: #{file_path}")
+        redis.set("data_processing:#{job_id}:status", "completed")
+        logger.info("All chunks processed. Deleted file: #{job_id}")
       end
 
-      logger.info("Processed chunk #{chunk_index} for #{file_path}")
+      logger.info("Processed chunk #{chunk_index} for #{job_id}")
     rescue StandardError => e
       logger.error("Error processing chunk #{chunk_index}: #{e.message}")
+      redis.set("data_processing:#{job_id}:status", "error")
     ensure
       redis.close
     end
@@ -50,9 +52,9 @@ class DataProcessingWorker
 
   private
 
-  def all_chunks_processed?(file_path, redis)
-    total_chunks = redis.get("data_processing:#{file_path}:total_chunks").to_i
-    processed_chunks = redis.get("data_processing:#{file_path}:processed_chunks").to_i
+  def all_chunks_processed?(job_id, redis)
+    total_chunks = redis.get("data_processing:#{job_id}:total_chunks").to_i
+    processed_chunks = redis.get("data_processing:#{job_id}:processed_chunks").to_i
     processed_chunks >= total_chunks
   end
 
