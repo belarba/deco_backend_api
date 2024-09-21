@@ -2,7 +2,12 @@ class DataProcessingWorker
   include Sidekiq::Worker
   sidekiq_options queue: 'default', retry: 3
 
-  REMOVABLE_VALUES = ['BE', 'NK', 'FR', 'BE FE', 'BE NL', 'PT'].freeze
+  REMOVABLE_VALUES = Set.new(['AL', 'AD', 'AM', 'AT', 'BY', 'BE', 'BA', 'BG',
+    'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GE', 'DE', 'GR', 'HU', 'IS',
+    'IE', 'IT', 'KZ', 'XK', 'LV', 'LI', 'LT', 'LU', 'MT', 'MD', 'MC', 'ME',
+    'NL', 'MK', 'NO', 'PL', 'PT', 'RO', 'RU', 'SM', 'RS', 'SK', 'SI', 'ES',
+    'SE', 'CH', 'TR', 'UA', 'UK', 'VA', 'BR'])
+  REMOVABLE_PATTERN = Regexp.union(REMOVABLE_VALUES.map { |v| /\b#{Regexp.escape(v)}\b/ })
   BATCH_SIZE = 1000
 
   def perform(chunk, file_path, chunk_index, job_id)
@@ -17,8 +22,8 @@ class DataProcessingWorker
         normalized_data = normalize_data(data)
 
         if data["availability"] && normalized_data[:price] > 0
-          postgresql_batch << Product.new(normalized_data)
-          mongodb_batch << ExternalRecord.new(normalized_data)
+          postgresql_batch << normalized_data
+          mongodb_batch << normalized_data
         end
 
         if (index + 1) % BATCH_SIZE == 0
@@ -30,11 +35,9 @@ class DataProcessingWorker
 
       save_batches(postgresql_batch, mongodb_batch) unless postgresql_batch.empty?
 
-      # Incrementa o número de chunks processados
       processed_key = "data_processing:#{job_id}:processed_chunks"
       redis.incr(processed_key)
 
-      # Verifica se todos os chunks foram processados
       if all_chunks_processed?(job_id, redis)
         File.delete(file_path) if File.exist?(file_path)
         redis.set("data_processing:#{job_id}:status", "completed")
@@ -47,6 +50,7 @@ class DataProcessingWorker
       redis.set("data_processing:#{job_id}:status", "error")
     ensure
       redis.close
+      GC.start # Libera memória não utilizada
     end
   end
 
@@ -59,14 +63,13 @@ class DataProcessingWorker
   end
 
   def save_batches(postgresql_batch, mongodb_batch)
-    ActiveRecord::Base.transaction do
-      Product.import(postgresql_batch, validate: false)
-    end
-    ExternalRecord.collection.insert_many(mongodb_batch.map(&:attributes))
-  rescue ActiveRecord::RecordInvalid => e
-    logger.error("Error saving to PostgreSQL: #{e.message}")
-  rescue Mongo::Error => e
-    logger.error("Error saving to MongoDB: #{e.message}")
+    # Inserção em massa para PostgreSQL
+    Product.insert_all(postgresql_batch)
+
+    # Inserção em massa para MongoDB
+    ExternalRecord.collection.insert_many(mongodb_batch)
+  rescue StandardError => e
+    logger.error("Error saving batches: #{e.message}")
   end
 
   def normalize_data(data)
@@ -75,23 +78,22 @@ class DataProcessingWorker
 
     {
       country: country,
-      brand: data["brand"],
+      brand: data["brand"].upcase,
       product_id: data["sku"].to_i,
-      product_name: data["model"],
+      product_name: data["model"].upcase,
       product_category_id: data["categoryId"].to_i,
       shop_name: shop_name,
       price: data["price"].to_f,
-      url: data["url"]
+      url: data["url"].downcase,
     }
   end
 
   def clean_invalid_chars(received_text)
     return nil if received_text.nil?
 
-    REMOVABLE_VALUES.each do |invalid_value|
-      received_text = received_text.gsub(/\b#{Regexp.escape(invalid_value)}\b/, '').strip
-    end
-
-    received_text.gsub(/\s+/, ' ')
+    received_text.upcase
+                 .gsub(REMOVABLE_PATTERN, '')
+                 .strip
+                 .gsub(/\s+/, ' ')
   end
 end

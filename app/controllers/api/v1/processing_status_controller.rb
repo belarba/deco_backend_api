@@ -1,11 +1,11 @@
 class Api::V1::ProcessingStatusController < ApplicationController
   def show
-    file_path = params[:file_path]
+    job_id = params[:job_id]
     redis = Redis.new
 
-    status = redis.get("data_processing:#{file_path}:status")
-    total_chunks = redis.get("data_processing:#{file_path}:total_chunks").to_i
-    processed_chunks = redis.get("data_processing:#{file_path}:processed_chunks").to_i
+    status = redis.get("data_processing:#{job_id}:status")
+    total_chunks = redis.get("data_processing:#{job_id}:total_chunks").to_i
+    processed_chunks = redis.get("data_processing:#{job_id}:processed_chunks").to_i
 
     render json: {
       status: status,

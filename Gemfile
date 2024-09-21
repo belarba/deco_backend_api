@@ -53,6 +53,8 @@ gem 'sidekiq'
 gem 'activerecord-import'
 gem 'redis'
 gem 'kaminari'
+gem 'oj'
+gem 'parallel'
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
