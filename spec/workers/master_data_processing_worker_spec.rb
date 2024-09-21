@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe MasterDataProcessingWorker, type: :worker do
-  let(:worker) { MasterDataProcessingWorker.new }
+  let(:worker) { described_class.new }
   let(:redis) { instance_double(Redis) }
   let(:logger) { instance_double(Logger, info: nil, error: nil) }
   let(:job_id) { 'test_job_id' }
@@ -17,7 +17,7 @@ RSpec.describe MasterDataProcessingWorker, type: :worker do
 
   describe '#perform' do
     context 'with a valid JSON file' do
-      let(:data_array) { [{ "key" => "value1" }, { "key" => "value2" }] }
+      let(:data_array) { [{ 'key' => 'value1' }, { 'key' => 'value2' }] }
 
       before do
         allow(Oj).to receive(:load_file).and_return(data_array)
@@ -33,7 +33,7 @@ RSpec.describe MasterDataProcessingWorker, type: :worker do
       it 'sets Redis keys' do
         expect(redis).to receive(:set).with("data_processing:#{job_id}:total_chunks", 1)
         expect(redis).to receive(:set).with("data_processing:#{job_id}:processed_chunks", 0)
-        expect(redis).to receive(:set).with("data_processing:#{job_id}:status", "processing")
+        expect(redis).to receive(:set).with("data_processing:#{job_id}:status", 'processing')
 
         worker.perform(file_path, job_id)
       end
@@ -41,11 +41,11 @@ RSpec.describe MasterDataProcessingWorker, type: :worker do
 
     context 'with an invalid JSON file' do
       before do
-        allow(Oj).to receive(:load_file).and_raise(Oj::ParseError.new("Invalid JSON"))
+        allow(Oj).to receive(:load_file).and_raise(Oj::ParseError.new('Invalid JSON'))
       end
 
       it 'logs an error' do
-        expect(logger).to receive(:error).with("Error parsing JSON file: Invalid JSON")
+        expect(logger).to receive(:error).with('Error parsing JSON file: Invalid JSON')
 
         worker.perform(file_path, job_id)
       end
@@ -53,11 +53,11 @@ RSpec.describe MasterDataProcessingWorker, type: :worker do
 
     context 'when file is not found' do
       before do
-        allow(Oj).to receive(:load_file).and_raise(Errno::ENOENT.new("File not found"))
+        allow(Oj).to receive(:load_file).and_raise(Errno::ENOENT.new('File not found'))
       end
 
       it 'logs an error' do
-        expect(logger).to receive(:error).with("File not found: No such file or directory - File not found")
+        expect(logger).to receive(:error).with('File not found: No such file or directory - File not found')
 
         worker.perform(file_path, job_id)
       end

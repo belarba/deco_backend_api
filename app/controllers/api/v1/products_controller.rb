@@ -1,22 +1,6 @@
 class Api::V1::ProductsController < ApplicationController
   skip_before_action :verify_authenticity_token
 
-  def create
-    if params[:file].present?
-      file_path = Rails.root.join("tmp", params[:file].original_filename)
-      job_id = SecureRandom.uuid
-      File.open(file_path, "wb") do |file|
-        file.write(params[:file].read)
-      end
-
-      MasterDataProcessingWorker.perform_async(file_path.to_s, job_id)
-
-      render json: { status: "Started the processing", job_id: job_id }, status: :ok
-    else
-      render json: { status: "File not found" }, status: :not_found
-    end
-  end
-
   def index
     per_page = (params[:per_page] || 20).to_i
     page = (params[:page] || 1).to_i
@@ -25,10 +9,10 @@ class Api::V1::ProductsController < ApplicationController
     product_name = ActiveRecord::Base.connection.quote(params[:product_name])
     country = ActiveRecord::Base.connection.quote(params[:country])
 
-    product_name_condition = params[:product_name].present? ? "product_name = #{product_name}" : "TRUE"
-    country_condition = params[:country].present? ? "country = #{country}" : "TRUE"
+    product_name_condition = params[:product_name].present? ? "product_name = #{product_name}" : 'TRUE'
+    country_condition = params[:country].present? ? "country = #{country}" : 'TRUE'
 
-    query = <<-SQL
+    query = <<-SQL.squish
       SELECT *
       FROM (
         SELECT *, ROW_NUMBER() OVER (ORDER BY country DESC) as row_num
@@ -38,27 +22,43 @@ class Api::V1::ProductsController < ApplicationController
       WHERE row_num > #{offset} AND row_num <= #{offset + per_page}
     SQL
 
-    count_query = <<-SQL
+    count_query = <<-SQL.squish
       SELECT COUNT(*)
       FROM products
       WHERE #{product_name_condition} AND #{country_condition}
     SQL
 
     products = ActiveRecord::Base.connection.execute(query)
-    total_count = ActiveRecord::Base.connection.execute(count_query).first["count"].to_i
+    total_count = ActiveRecord::Base.connection.execute(count_query).first['count'].to_i
 
-    countries = ActiveRecord::Base.connection.execute("SELECT DISTINCT country FROM products ORDER BY country").map { |row| row["country"] }
+    countries = ActiveRecord::Base.connection
+                                  .execute('SELECT DISTINCT country FROM products ORDER BY country')
+                                  .pluck('country')
 
     render json: {
-      products: products,
-      countries: countries,
+      products:,
+      countries:,
       meta: {
         current_page: page,
         total_pages: (total_count.to_f / per_page).ceil,
-        total_count: total_count,
-        per_page: per_page
+        total_count:,
+        per_page:
       }
     }
+  end
+
+  def create
+    if params[:file].present?
+      file_path = Rails.root.join('tmp', params[:file].original_filename)
+      job_id = SecureRandom.uuid
+      File.binwrite(file_path, params[:file].read)
+
+      MasterDataProcessingWorker.perform_async(file_path.to_s, job_id)
+
+      render json: { status: 'Started the processing', job_id: }, status: :ok
+    else
+      render json: { status: 'File not found' }, status: :not_found
+    end
   end
 
   def index_mongo
@@ -67,13 +67,9 @@ class Api::V1::ProductsController < ApplicationController
 
     query = ExternalRecord.all
 
-    if params[:product_name].present?
-      query = query.where(product_name: params[:product_name])
-    end
+    query = query.where(product_name: params[:product_name]) if params[:product_name].present?
 
-    if params[:country].present?
-      query = query.where(country: params[:country])
-    end
+    query = query.where(country: params[:country]) if params[:country].present?
 
     total_count = query.count
 
@@ -83,12 +79,12 @@ class Api::V1::ProductsController < ApplicationController
                     .to_a
 
     render json: {
-      products: products,
+      products:,
       meta: {
         current_page: page,
         total_pages: (total_count.to_f / per_page).ceil,
-        total_count: total_count,
-        per_page: per_page
+        total_count:,
+        per_page:
       }
     }
   end

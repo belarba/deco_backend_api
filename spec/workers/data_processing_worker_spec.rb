@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe DataProcessingWorker, type: :worker do
-  let(:worker) { DataProcessingWorker.new }
+  let(:worker) { described_class.new }
   let(:redis) { instance_double(Redis) }
   let(:logger) { instance_double(Logger, info: nil, error: nil) }
   let(:job_id) { 'test_job_id' }
@@ -24,9 +24,9 @@ RSpec.describe DataProcessingWorker, type: :worker do
   describe '#perform' do
     let(:chunk) do
       [
-        { "availability" => true, "price" => 100, "ismarketplace" => false, "site" => "TestSite",
-          "country" => "US", "brand" => "TestBrand", "sku" => "123", "model" => "TestModel",
-          "categoryId" => "456", "url" => "http://test.com" }
+        { 'availability' => true, 'price' => 100, 'ismarketplace' => false, 'site' => 'TestSite',
+          'country' => 'US', 'brand' => 'TestBrand', 'sku' => '123', 'model' => 'TestModel',
+          'categoryId' => '456', 'url' => 'http://test.com' }
       ]
     end
 
@@ -50,8 +50,8 @@ RSpec.describe DataProcessingWorker, type: :worker do
       end
 
       it 'deletes the file and sets status to completed' do
-        expect(File).to receive(:delete).with(file_path)
-        expect(redis).to receive(:set).with("data_processing:#{job_id}:status", "completed")
+        expect(FileUtils).to receive(:rm_f).with(file_path)
+        expect(redis).to receive(:set).with("data_processing:#{job_id}:status", 'completed')
 
         worker.perform(chunk, file_path, chunk_index, job_id)
       end

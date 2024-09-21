@@ -1,0 +1,57 @@
+require:
+  - rubocop-rails
+  - rubocop-rspec
+
+AllCops:
+  NewCops: enable
+  Exclude:
+    - 'db/**/*'
+    - 'config/**/*'
+    - 'script/**/*'
+    - 'bin/**/*'
+    - 'vendor/**/*'
+    - 'node_modules/**/*'
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+RSpec/ExampleLength:
+  Max: 10
+  Exclude:
+    - 'spec/**/*'
+
+RSpec/MultipleExpectations:
+  Max: 5
+  Exclude:
+    - 'spec/**/*'
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+  Exclude:
+    - 'spec/**/*'
+
+RSpec/MessageChain:
+  Enabled: false
+  Exclude:
+    - 'spec/**/*'
+
+RSpec/MessageSpies:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Metrics/ClassLength:
+  Max: 150
+
+Metrics/MethodLength:
+  Max: 25
+

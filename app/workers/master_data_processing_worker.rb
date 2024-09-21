@@ -2,10 +2,10 @@ class MasterDataProcessingWorker
   include Sidekiq::Worker
   sidekiq_options queue: 'default', retry: 3
 
-  CHUNK_SIZE = 10000 # Define o tamanho de cada chunk
+  CHUNK_SIZE = 10_000 # Define o tamanho de cada chunk
 
   def perform(file_path, job_id)
-    logger = Logger.new(STDOUT)
+    logger = Logger.new($stdout)
     redis = Redis.new
 
     begin
@@ -16,7 +16,7 @@ class MasterDataProcessingWorker
 
       redis.set("data_processing:#{job_id}:total_chunks", total_chunks)
       redis.set("data_processing:#{job_id}:processed_chunks", 0)
-      redis.set("data_processing:#{job_id}:status", "processing")
+      redis.set("data_processing:#{job_id}:status", 'processing')
 
       # Usa processamento paralelo para enfileirar os workers
       Parallel.each(data_array.each_slice(CHUNK_SIZE).with_index, in_processes: 4) do |chunk, index|

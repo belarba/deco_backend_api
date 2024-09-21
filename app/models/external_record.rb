@@ -11,6 +11,6 @@ class ExternalRecord
   field :price, type: Float
   field :url, type: String
 
-   index({ country: 1 })
-   index({ product_name: 1 })
+  index({ country: 1 })
+  index({ product_name: 1 })
 end
