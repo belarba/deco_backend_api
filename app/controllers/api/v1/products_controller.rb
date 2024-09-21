@@ -23,14 +23,17 @@ class Api::V1::ProductsController < ApplicationController
     offset = (page - 1) * per_page
 
     product_name = ActiveRecord::Base.connection.quote(params[:product_name])
+    country = ActiveRecord::Base.connection.quote(params[:country])
+
     product_name_condition = params[:product_name].present? ? "product_name = #{product_name}" : "TRUE"
+    country_condition = params[:country].present? ? "country = #{country}" : "TRUE"
 
     query = <<-SQL
       SELECT *
       FROM (
         SELECT *, ROW_NUMBER() OVER (ORDER BY country DESC) as row_num
         FROM products
-        WHERE #{product_name_condition}
+        WHERE #{product_name_condition} AND #{country_condition}
       ) as numbered_products
       WHERE row_num > #{offset} AND row_num <= #{offset + per_page}
     SQL
@@ -38,15 +41,17 @@ class Api::V1::ProductsController < ApplicationController
     count_query = <<-SQL
       SELECT COUNT(*)
       FROM products
-      WHERE #{product_name_condition}
+      WHERE #{product_name_condition} AND #{country_condition}
     SQL
 
     products = ActiveRecord::Base.connection.execute(query)
-
     total_count = ActiveRecord::Base.connection.execute(count_query).first["count"].to_i
+
+    countries = ActiveRecord::Base.connection.execute("SELECT DISTINCT country FROM products ORDER BY country").map { |row| row["country"] }
 
     render json: {
       products: products,
+      countries: countries,
       meta: {
         current_page: page,
         total_pages: (total_count.to_f / per_page).ceil,
