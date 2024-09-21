@@ -4,7 +4,7 @@ class ExternalRecord
 
   field :country, type: String
   field :brand, type: String
-  field :produtc_id, type: Integer
+  field :product_id, type: Integer
   field :product_name, type: String
   field :shop_name, type: String
   field :product_category_id, type: Integer

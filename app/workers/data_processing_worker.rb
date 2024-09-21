@@ -74,7 +74,7 @@ class DataProcessingWorker
     {
       country: country,
       brand: data["brand"],
-      produtc_id: data["sku"].to_i,
+      product_id: data["sku"].to_i,
       product_name: data["model"],
       product_category_id: data["categoryId"].to_i,
       shop_name: shop_name,
