@@ -55,4 +55,36 @@ class Api::V1::ProductsController < ApplicationController
       }
     }
   end
+
+  def index_mongo
+    per_page = (params[:per_page] || 20).to_i
+    page = (params[:page] || 1).to_i
+
+    query = ExternalRecord.all
+
+    if params[:product_name].present?
+      query = query.where(product_name: params[:product_name])
+    end
+
+    if params[:country].present?
+      query = query.where(country: params[:country])
+    end
+
+    total_count = query.count
+
+    products = query.order(country: :desc)
+                    .skip((page - 1) * per_page)
+                    .limit(per_page)
+                    .to_a
+
+    render json: {
+      products: products,
+      meta: {
+        current_page: page,
+        total_pages: (total_count.to_f / per_page).ceil,
+        total_count: total_count,
+        per_page: per_page
+      }
+    }
+  end
 end

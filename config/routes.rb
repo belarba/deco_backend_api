@@ -14,6 +14,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :products, only: [:create, :index]
+      get '/products_mongo', to: 'products#index_mongo'
       resources :processing_status, only: [:show], param: :job_id
     end
   end
