@@ -14,7 +14,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :products, only: [:create, :index]
-      resources :processing_status, only: [:show], param: :job_id
+      resources :processing_status, only: [:show], param: :product_name
     end
   end
 end

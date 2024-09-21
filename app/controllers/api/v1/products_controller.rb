@@ -21,8 +21,8 @@ class Api::V1::ProductsController < ApplicationController
     per_page = params[:per_page] || 20
     page = params[:page] || 1
 
-    @products = Product.order(created_at: :desc)
-    @products = @products.where(country: params[:country]) if params[:country].present?
+    @products = Product.order(country: :desc)
+    @products = @products.where(product_name: params[:product_name]) if params[:product_name].present?
     @products = @products.page(page).per(per_page)
 
     render json: {
