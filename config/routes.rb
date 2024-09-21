@@ -13,8 +13,8 @@ Rails.application.routes.draw do
   # root "posts#index"
   namespace :api do
     namespace :v1 do
-      resources :products, only: [:create]
-      get 'processing_status/:file_path', to: 'processing_status#show'
+      resources :products, only: [:create, :index]
+      resources :processing_status, only: [:show]
     end
   end
 end

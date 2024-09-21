@@ -16,4 +16,23 @@ class Api::V1::ProductsController < ApplicationController
       render json: { status: "File not found" }, status: :not_found
     end
   end
+
+  def index
+    per_page = params[:per_page] || 20
+    page = params[:page] || 1
+
+    @products = Product.order(created_at: :desc)
+    @products = @products.where(country: params[:country]) if params[:country].present?
+    @products = @products.page(page).per(per_page)
+
+    render json: {
+      products: @products,
+      meta: {
+        current_page: @products.current_page,
+        total_pages: @products.total_pages,
+        total_count: @products.total_count,
+        per_page: per_page
+      }
+    }
+  end
 end
