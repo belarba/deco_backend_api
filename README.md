@@ -114,7 +114,7 @@ I used artificial intelligence as a discovery tool to find better approaches and
 
 1. Through AI, I discovered the Oj library for more efficient JSON parsing.
 
-2. I implemented parallel processing using the Parallel gem, also based on AI suggestions.
+2. I implemented parallel processing using the Parallel gem, also based on AI suggestions. I knew I wanted to add it, bit I wasn't aware about how to do it.
 
 ### Challenges and Learnings
 
