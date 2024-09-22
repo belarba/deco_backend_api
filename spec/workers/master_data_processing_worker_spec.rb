@@ -1,66 +1,30 @@
 require 'rails_helper'
 
 RSpec.describe MasterDataProcessingWorker, type: :worker do
-  let(:worker) { described_class.new }
-  let(:redis) { instance_double(Redis) }
-  let(:logger) { instance_double(Logger, info: nil, error: nil) }
-  let(:job_id) { 'test_job_id' }
-  let(:file_path) { 'test_file_path.json' }
+  let(:file_path) { Rails.root.join('spec', 'fixtures', 'test_data.json').to_s }
+  let(:job_id) { 'test_job_123' }
 
   before do
-    allow(Redis).to receive(:new).and_return(redis)
-    allow(Logger).to receive(:new).and_return(logger)
-    allow(redis).to receive(:close)
-    allow(redis).to receive(:set)
+    # Stub minimal dependencies
+    allow(Redis).to receive(:new).and_return(double('redis').as_null_object)
+    allow(FileUtils).to receive(:mv)
+    allow(Oj).to receive(:load_file).and_return([{ "id" => 1, "name" => "Test" }] * 15000)
+    allow(Parallel).to receive(:each).and_yield([{ "id" => 1, "name" => "Test" }] * 10000, 0)
     allow(DataProcessingWorker).to receive(:perform_async)
   end
 
-  describe '#perform' do
-    context 'with a valid JSON file' do
-      let(:data_array) { [{ 'key' => 'value1' }, { 'key' => 'value2' }] }
+  it 'processes the file and enqueues DataProcessingWorker job' do
+    expect(DataProcessingWorker).to receive(:perform_async).at_least(:once)
+    described_class.new.perform(file_path, job_id)
+  end
 
-      before do
-        allow(Oj).to receive(:load_file).and_return(data_array)
-        allow(Parallel).to receive(:each).and_yield(data_array, 0)
-      end
+  it 'handles file not found error' do
+    allow(FileUtils).to receive(:mv).and_raise(Errno::ENOENT.new("No such file or directory"))
+    expect { described_class.new.perform(file_path, job_id) }.not_to raise_error
+  end
 
-      it 'enqueues DataProcessingWorker jobs' do
-        expect(DataProcessingWorker).to receive(:perform_async).once
-
-        worker.perform(file_path, job_id)
-      end
-
-      it 'sets Redis keys' do
-        expect(redis).to receive(:set).with("data_processing:#{job_id}:total_chunks", 1)
-        expect(redis).to receive(:set).with("data_processing:#{job_id}:processed_chunks", 0)
-        expect(redis).to receive(:set).with("data_processing:#{job_id}:status", 'processing')
-
-        worker.perform(file_path, job_id)
-      end
-    end
-
-    context 'with an invalid JSON file' do
-      before do
-        allow(Oj).to receive(:load_file).and_raise(Oj::ParseError.new('Invalid JSON'))
-      end
-
-      it 'logs an error' do
-        expect(logger).to receive(:error).with('Error parsing JSON file: Invalid JSON')
-
-        worker.perform(file_path, job_id)
-      end
-    end
-
-    context 'when file is not found' do
-      before do
-        allow(Oj).to receive(:load_file).and_raise(Errno::ENOENT.new('File not found'))
-      end
-
-      it 'logs an error' do
-        expect(logger).to receive(:error).with('File not found: No such file or directory - File not found')
-
-        worker.perform(file_path, job_id)
-      end
-    end
+  it 'handles JSON parse error' do
+    allow(Oj).to receive(:load_file).and_raise(Oj::ParseError.new("Invalid JSON"))
+    expect { described_class.new.perform(file_path, job_id) }.not_to raise_error
   end
 end

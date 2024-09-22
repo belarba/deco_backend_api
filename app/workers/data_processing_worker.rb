@@ -8,9 +8,9 @@ class DataProcessingWorker
                                 NL MK NO PL PT RO RU SM RS SK SI ES
                                 SE CH TR UA UK VA BR])
   REMOVABLE_PATTERN = Regexp.union(REMOVABLE_VALUES.map { |v| /\b#{Regexp.escape(v)}\b/ })
-  BATCH_SIZE = 1000
+  BATCH_SIZE = 1_000
 
-  def perform(chunk, file_path, chunk_index, job_id)
+  def perform(chunk, chunk_index, job_id)
     logger = Logger.new($stdout)
     redis = Redis.new
 
@@ -39,9 +39,8 @@ class DataProcessingWorker
       redis.incr(processed_key)
 
       if all_chunks_processed?(job_id, redis)
-        FileUtils.rm_f(file_path)
         redis.set("data_processing:#{job_id}:status", 'completed')
-        logger.info("All chunks processed. Deleted file: #{job_id}")
+        logger.info("All chunks processed for job: #{job_id}.")
       end
 
       logger.info("Processed chunk #{chunk_index} for #{job_id}")
