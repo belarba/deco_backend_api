@@ -1,6 +1,6 @@
 # Deco Backend API
 
-This is an API developed to read a JSON file, save the data in 2 databases - postgres and mongodb - and present and browse the saved data.
+This is an API developed to read a JSON file, save the data in 2 databases - PostgreSQL and MongoDB - and present and browse the saved data.
 
 The User Interface can be found [here](https://github.com/belarba/deco_frontend_ui)
 
