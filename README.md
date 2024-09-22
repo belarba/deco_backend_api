@@ -131,4 +131,10 @@ The development was not without obstacles:
 - *Test Coverage*: Improve test scenarios to cover more edge cases. Expand testing to check additional edge scenarios not currently covered.
 
 - *Error Handling*: Enhance the error handling mechanisms. I realized I focused too much on the happy path, and there are some simple error scenarios that could benefit from better error handling.
+
+- *JSON File Import*: Create a list of records with UTF-8 problems, to review it and consider ways to address them without just ignoring these records.
+
+### Number of records imported
+
+After filtering the specified rules and ignoring UTF-8 errors that I encountered while reading the JSON file, I was able to import 2_343_790 records
   
