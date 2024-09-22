@@ -134,6 +134,8 @@ The development was not without obstacles:
 
 - *JSON File Import*: Create a list of records with UTF-8 problems, to review it and consider ways to address them without just ignoring these records.
 
+- *Records read and pagination*: I don't think my approach is the best possible. I have the feeling that it doesn't work very well with large datasets and needs more study.
+
 ### Number of records imported
 
 After filtering the specified rules and ignoring UTF-8 errors that I encountered while reading the JSON file, I was able to import 2_343_790 records
