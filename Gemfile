@@ -53,7 +53,6 @@ gem 'mongoid', '~> 8.0.7'
 gem 'sidekiq'
 
 gem 'activerecord-import'
-gem 'kaminari'
 gem 'oj'
 gem 'parallel'
 gem 'redis'
